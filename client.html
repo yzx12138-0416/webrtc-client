@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Client</title>
+</head>
+<body>
+    <h2>WebRTC Client</h2>
+    
+    <!-- 本地视频显示 -->
+    <video id="localVideo" autoplay muted></video> 
+    
+    <!-- 远程视频显示 -->
+    <video id="remoteVideo" autoplay></video> 
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8080');  // WebSocket 服务器地址
+
+        // WebSocket 连接成功时
+        ws.onopen = () => {
+            console.log('Connected to server');
+            
+            // 创建 WebRTC PeerConnection 实例
+            const peerConnection = new RTCPeerConnection();
+
+            // 获取本地视频流并添加到连接
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                .then(stream => {
+                    // 将本地视频流添加到 PeerConnection
+                    stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+                    // 在页面中显示本地视频流
+                    const videoElement = document.getElementById('localVideo');
+                    videoElement.srcObject = stream;
+                })
+                .catch(error => {
+                    console.error('Error accessing media devices:', error);
+                });
+
+            // 处理远程视频流并显示
+            peerConnection.ontrack = (event) => {
+                // 绑定远程视频流到视频元素
+                const remoteStream = event.streams[0];
+                const remoteVideoElement = document.getElementById('remoteVideo');
+                remoteVideoElement.srcObject = remoteStream;
+            };
+
+            // 处理 ICE 候选
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    console.log('Sending ICE candidate');
+                    ws.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate }));
+                }
+            };
+
+            // 创建 SDP offer，并发送到服务器
+            peerConnection.createOffer().then(offer => {
+                return peerConnection.setLocalDescription(offer);
+            }).then(() => {
+                console.log('Sending SDP offer');
+                ws.send(JSON.stringify({ type: 'offer', sdp: peerConnection.localDescription }));
+            });
+        };
+
+        // WebSocket 接收到消息时
+        ws.onmessage = (data) => {
+            const message = JSON.parse(data.data);
+
+            if (message.type === 'offer') {
+                // 处理来自服务器的 SDP offer
+                console.log('Received SDP offer:', message.sdp);
+                peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp)).then(() => {
+                    return peerConnection.createAnswer();
+                }).then(answer => {
+                    return peerConnection.setLocalDescription(answer);
+                }).then(() => {
+                    console.log('Sending SDP answer');
+                    ws.send(JSON.stringify({ type: 'answer', sdp: peerConnection.localDescription }));
+                });
+            } else if (message.type === 'answer') {
+                // 处理 SDP answer
+                console.log('Received SDP answer:', message.sdp);
+                peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp));
+            } else if (message.type === 'ice-candidate') {
+                // 处理 ICE 候选
+                console.log('Received ICE candidate:', message.candidate);
+                peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate));
+            }
+        };
+
+        // WebSocket 关闭时
+        ws.onclose = () => {
+            console.log('Disconnected from server');
+        };
+    </script>
+</body>
+</html>
