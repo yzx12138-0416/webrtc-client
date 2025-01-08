@@ -60,8 +60,30 @@
 
         // WebSocket 接收到消息时
         ws.onmessage = (data) => {
-            const message = JSON.parse(data.data);
+            // 如果接收到的是 Blob 类型的消息
+            if (data.data instanceof Blob) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const message = JSON.parse(reader.result);
+                        handleMessage(message);
+                    } catch (e) {
+                        console.error('Error parsing message:', e);
+                    }
+                };
+                reader.readAsText(data.data);
+            } else {
+                try {
+                    const message = JSON.parse(data.data);
+                    handleMessage(message);
+                } catch (e) {
+                    console.error('Error parsing message:', e);
+                }
+            }
+        };
 
+        // 处理 WebSocket 消息
+        function handleMessage(message) {
             if (message.type === 'offer') {
                 console.log('Received SDP offer:', message.sdp);
                 peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp)).then(() => {
@@ -79,7 +101,7 @@
                 console.log('Received ICE candidate:', message.candidate);
                 peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate));
             }
-        };
+        }
 
         // WebSocket 关闭时
         ws.onclose = () => {
