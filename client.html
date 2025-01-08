@@ -3,42 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Client</title>
-    <style>
-        /* 简单的样式，用于显示视频 */
-        video {
-            width: 100%;
-            max-width: 400px;
-            border: 1px solid #000;
-            margin-bottom: 10px;
-        }
-    </style>
+    <title>Client WebSocket</title>
 </head>
 <body>
-    <h2>WebRTC Client</h2>
-
+    <h2>Client WebSocket</h2>
+    
     <!-- 摄像头选择下拉菜单 -->
     <label for="cameraSelect">Select Camera:</label>
     <select id="cameraSelect"></select>
 
     <!-- 本地视频显示 -->
-    <video id="localVideo" autoplay muted></video>
-
+    <video id="localVideo" autoplay muted></video> 
+    
     <!-- 远程视频显示 -->
-    <video id="remoteVideo" autoplay></video>
+    <video id="remoteVideo" autoplay></video> 
 
     <script>
         const ws = new WebSocket('ws://localhost:8080');  // WebSocket 服务器地址
         let peerConnection;
-        let localStream;
 
         // WebSocket 连接成功时
         ws.onopen = () => {
             console.log('Connected to server');
-
+            
             // 创建 WebRTC PeerConnection 实例
             peerConnection = new RTCPeerConnection();
-
+            
             // 获取摄像头列表
             getCameraList();
 
@@ -60,30 +50,8 @@
 
         // WebSocket 接收到消息时
         ws.onmessage = (data) => {
-            // 如果接收到的是 Blob 类型的消息
-            if (data.data instanceof Blob) {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    try {
-                        const message = JSON.parse(reader.result);
-                        handleMessage(message);
-                    } catch (e) {
-                        console.error('Error parsing message:', e);
-                    }
-                };
-                reader.readAsText(data.data);
-            } else {
-                try {
-                    const message = JSON.parse(data.data);
-                    handleMessage(message);
-                } catch (e) {
-                    console.error('Error parsing message:', e);
-                }
-            }
-        };
+            const message = JSON.parse(data.data);
 
-        // 处理 WebSocket 消息
-        function handleMessage(message) {
             if (message.type === 'offer') {
                 console.log('Received SDP offer:', message.sdp);
                 peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp)).then(() => {
@@ -101,7 +69,7 @@
                 console.log('Received ICE candidate:', message.candidate);
                 peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate));
             }
-        }
+        };
 
         // WebSocket 关闭时
         ws.onclose = () => {
@@ -148,22 +116,12 @@
                 video: { deviceId: deviceId },
                 audio: true
             }).then(stream => {
-                localStream = stream;
                 // 将本地视频流添加到 PeerConnection
                 stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
 
                 // 在页面中显示本地视频流
                 const videoElement = document.getElementById('localVideo');
                 videoElement.srcObject = stream;
-
-                // 向服务器发送 SDP offer
-                if (!peerConnection.localDescription) {
-                    peerConnection.createOffer().then(offer => {
-                        return peerConnection.setLocalDescription(offer);
-                    }).then(() => {
-                        ws.send(JSON.stringify({ type: 'offer', sdp: peerConnection.localDescription }));
-                    });
-                }
             }).catch(error => {
                 console.error('Error accessing media devices:', error);
             });
