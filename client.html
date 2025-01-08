@@ -51,7 +51,10 @@
 
         // WebSocket 接收到消息时
         ws.onmessage = (data) => {
+            console.log("Received message from server:", data.data); // 调试语句，打印接收到的消息
+
             const message = JSON.parse(data.data);
+            console.log("Parsed message:", message); // 调试语句，打印解析后的消息内容
 
             if (message.type === 'offer') {
                 console.log('Received SDP offer:', message.sdp);
@@ -127,24 +130,37 @@
                 // 记录流
                 localStream = stream;
 
-                // 设置 MediaRecorder 的 mimeType
-                const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-
-                mediaRecorder.ondataavailable = (event) => {
-                    console.log("Sending video Blob to server");
-
-                    // 确保 Blob 有 MIME 类型
-                    if (event.data.type === "") {
-                        event.data = new Blob([event.data], { type: 'video/webm' });
-                    }
-
-                    ws.send(event.data);  // 发送视频流的 Blob 数据
-                };
-
-                mediaRecorder.start(1000);  // 每秒发送一次数据
+                // 捕获每一帧并发送
+                captureAndSendFrame(videoElement);
             }).catch(error => {
                 console.error('Error accessing media devices:', error);
             });
+        }
+
+        // 捕获视频帧并通过 WebSocket 发送
+        function captureAndSendFrame(videoElement) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            function captureFrame() {
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                ctx.drawImage(videoElement, 0, 0);
+
+                // 将帧转换为二进制格式（例如 PNG）
+                canvas.toBlob(blob => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        // 发送帧数据到 WebSocket 服务器
+                        ws.send(blob);
+                    }
+                }, 'image/png');
+
+                // 每隔一定时间（例如 30 FPS）捕获下一帧
+                setTimeout(captureFrame, 1000 / 30);
+            }
+
+            // 开始捕获视频帧
+            captureFrame();
         }
     </script>
 </body>
