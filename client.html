@@ -14,6 +14,9 @@
 
     <!-- 本地视频显示 -->
     <video id="localVideo" autoplay muted></video> 
+    
+    <!-- 远程视频显示 -->
+    <video id="remoteVideo" autoplay></video> 
 
     <script>
         const ws = new WebSocket('ws://localhost:8080');  // WebSocket 服务器地址
@@ -120,11 +123,20 @@
                 const videoElement = document.getElementById('localVideo');
                 videoElement.srcObject = stream;
 
-                // 将视频流转换为 Blob，并通过 WebSocket 发送
-                const mediaRecorder = new MediaRecorder(stream);
+                // 设置 mediaRecorder 的 mimeType
+                const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
                 mediaRecorder.ondataavailable = (event) => {
+                    console.log("Sending video Blob to server");
+
+                    // Ensure the Blob has a MIME type
+                    if (event.data.type === "") {
+                        event.data = new Blob([event.data], { type: 'video/webm' });
+                    }
+
                     ws.send(event.data);  // 发送视频流的 Blob 数据
                 };
+
                 mediaRecorder.start(1000);  // 每秒发送一次数据
             }).catch(error => {
                 console.error('Error accessing media devices:', error);
