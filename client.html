@@ -3,24 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Client WebSocket</title>
+    <title>WebRTC Video Streaming</title>
 </head>
 <body>
-    <h2>Client WebSocket</h2>
-    
+    <h2>Video Stream</h2>
+
     <!-- 摄像头选择下拉菜单 -->
     <label for="cameraSelect">Select Camera:</label>
     <select id="cameraSelect"></select>
 
     <!-- 本地视频显示 -->
     <video id="localVideo" autoplay muted></video> 
-    
+
     <!-- 远程视频显示 -->
-    <video id="remoteVideo" autoplay></video> 
+    <video id="remoteVideo" autoplay></video>
 
     <script>
         const ws = new WebSocket('ws://localhost:8080');  // WebSocket 服务器地址
         let peerConnection;
+        let localStream;
 
         // WebSocket 连接成功时
         ws.onopen = () => {
@@ -123,7 +124,10 @@
                 const videoElement = document.getElementById('localVideo');
                 videoElement.srcObject = stream;
 
-                // 设置 mediaRecorder 的 mimeType
+                // 记录流
+                localStream = stream;
+
+                // 设置 MediaRecorder 的 mimeType
                 const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
 
                 mediaRecorder.ondataavailable = (event) => {
