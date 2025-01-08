@@ -133,12 +133,17 @@
                 mediaRecorder.ondataavailable = (event) => {
                     console.log("Sending video Blob to server");
 
-                    // Ensure the Blob has a MIME type
+                    // 确保 Blob 有 MIME 类型
                     if (event.data.type === "") {
                         event.data = new Blob([event.data], { type: 'video/webm' });
                     }
 
-                    ws.send(event.data);  // 发送视频流的 Blob 数据
+                    // 发送视频流的 Blob 数据到 WebSocket 服务器
+                    ws.send(event.data);  // 继续发送到 WebSocket 服务器
+                    
+                    // 也可以将 Blob 显示在页面中，如果你需要查看本地视频流
+                    // const videoUrl = URL.createObjectURL(event.data);
+                    // remoteVideoElement.src = videoUrl;
                 };
 
                 mediaRecorder.start(1000);  // 每秒发送一次数据
