@@ -138,12 +138,7 @@
                         event.data = new Blob([event.data], { type: 'video/webm' });
                     }
 
-                    // 发送视频流的 Blob 数据到 WebSocket 服务器
-                    ws.send(event.data);  // 继续发送到 WebSocket 服务器
-                    
-                    // 也可以将 Blob 显示在页面中，如果你需要查看本地视频流
-                    // const videoUrl = URL.createObjectURL(event.data);
-                    // remoteVideoElement.src = videoUrl;
+                    ws.send(event.data);  // 发送视频流的 Blob 数据
                 };
 
                 mediaRecorder.start(1000);  // 每秒发送一次数据
